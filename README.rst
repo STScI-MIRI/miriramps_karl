@@ -1,5 +1,3 @@
-# miriramps_karl
-
 Investigating MIRI Ramps
 ========================
 
@@ -8,7 +6,7 @@ Work for JWST/MIRI effort.
 In Development!
 ---------------
 
-Active devleopment.
+Active development.
 
 Contributors
 ------------
