@@ -3,9 +3,11 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 from astropy.io import fits
-from astropy.modeling.models import Polynomial1D, Linear1D
-from expmodel import Exponential1D
-from astropy.modeling.fitting import LevMarLSQFitter, LinearLSQFitter
+from astropy.modeling.models import Linear1D
+from astropy.modeling.fitting import LinearLSQFitter
+
+from miri_ramp_utils import get_ramp, get_good_ramp, fit_diffs, calc_lincor
+
 
 if __name__ == "__main__":
 
@@ -19,8 +21,9 @@ if __name__ == "__main__":
         nargs=2,
         default=[150, 150],
     )
-    parser.add_argument("--startDN", help="DN for start of ramp in correction",
-                        type=float, default=0.0)
+    # parser.add_argument(
+    #     "--startDN", help="DN for start of ramp in correction", type=float, default=0.0
+    # )
     parser.add_argument("--png", help="save figure as an png file", action="store_true")
     parser.add_argument("--pdf", help="save figure as a pdf file", action="store_true")
     args = parser.parse_args()
@@ -29,8 +32,17 @@ if __name__ == "__main__":
     filename = "Data/MIRI_5604_111_S_20180323-235653_SCE1.fits"
     hdu = fits.open(filename)
 
-    fig, sax = plt.subplots(ncols=3, nrows=2, figsize=(15, 10))
-    ax = [sax[0, 0], sax[1, 0], sax[1, 1], sax[0, 1], sax[0, 2], sax[1, 2]]
+    fig, sax = plt.subplots(ncols=4, nrows=2, figsize=(18, 9))
+    ax = [
+        sax[0, 0],
+        sax[1, 0],
+        sax[1, 1],
+        sax[0, 1],
+        sax[0, 2],
+        sax[1, 2],
+        sax[1, 3],
+        sax[0, 3],
+    ]
 
     pix_y, pix_x = args.pixel
     ngrps = hdu[0].header["NGROUPS"]
@@ -40,33 +52,19 @@ if __name__ == "__main__":
     x = []
     y = []
 
-    # for the correction
-    rmin = np.zeros((ngrps))
-    rmax = np.zeros((ngrps))
-
     # plot all integrations folded
-    gnum = np.array(range(ngrps))
+    mm_delta = 0.0
+    max_ramp_k = -1
     for k in range(nints):
-        k1 = k * ngrps
-        k2 = k1 + ngrps
-        ydata = (hdu[0].data[k1:k2, pix_x, pix_y]).astype(float)
+        gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k)
+        ggnum, gdata, aveDN, diffDN = get_good_ramp(gnum, ydata)
+
         ax[0].plot(gnum, ydata, label=f"Int #{k+1}")
 
-        # create clean versions of the data
-        gindxs, = np.where((ydata > 0.0) & (ydata < 55000.0))
-        gdata = ydata[gindxs]
-        ggnum = gnum[gindxs]
-
-        # determine the DN min/max of ramp
-        rmin[k] = gdata.min()
-        rmax[k] = gdata.max()
-
         # plot the 2pt diffs
-        diffDN = np.diff(gdata)
         ax[1].plot(ggnum[:-1], diffDN, label=f"Int #{k+1}")
 
         # plot the 2pt diffs versus average DN
-        aveDN = 0.5 * (gdata[:-1] + gdata[1:])
         ax[2].plot(aveDN, diffDN, label=f"Int #{k+1}")
 
         if k == 0:
@@ -77,86 +75,79 @@ if __name__ == "__main__":
         x.append(aveDN)
         y.append(diffDN)
 
+        # find the ramp that spans the largest range of DN
+        # and save some info -> needed for creating the correction
+        # if (gdata.max() - gdata.min()) > mm_delta:
+        #    mm_delta = gdata.max() - gdata.min()
+        if k == 3:
+            max_ramp_k = k
+            max_ramp_gdata = gdata
+            max_ramp_aveDN = aveDN
+
     # fit the aveDN versus diffDN combined data from all integrations
     x = np.concatenate(x)
     y = np.concatenate(y)
+    mod = fit_diffs(x, y)
 
-    mod_init = Exponential1D(
-        x_0=-2000.0,
-        amplitude=2500.0,
-        bounds={"amplitude": [100.0, 5000.0], "x_0": [-10000.0, 0.0]},
-    ) + Polynomial1D(degree=2)
-
-    fit = LevMarLSQFitter()
-
-    findxs, = np.where((x < 55000.0) & (x > 0.0))
-    mod = fit(mod_init, x[findxs], y[findxs], maxiter=10000)
+    # plot the model
     mod_x = np.linspace(0.0, 65000.0, num=100)
-    mod_y = mod(mod_x)
-    ax[2].plot(mod_x, mod_y, "k--", label="Exp1D+Poly1D")
+    ax[2].plot(mod_x, mod(mod_x), "k--", label="Exp1D+Poly1D")
     ax[2].plot(mod_x, mod[1](mod_x), "k-.", label="Poly1D only")
 
-    # print(mod.param_names)
-    # print(mod.parameters)
+    # for k in range(nints):
+    #    gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k)
+    #    ggnum, gdata, aveDN, diffDN = get_good_ramp(gnum, ydata)
 
-    # create the correction
-    poly_mod = mod[1]
-    # find the ramp that spans the largest range of DN
-    ramp_minmax = rmax - rmin
-    max_ramp_k, = np.where(ramp_minmax == np.amax(ramp_minmax))
+    #    (DN_exp, cor, cor_mod) = calc_lincor(mod[1], gdata, args.startDN)
+    #    ax[3].plot(DN_exp, cor, "--", label=f"Int #{k+1}")
 
-    # observed data
-    k = max_ramp_k[0]
-    k1 = k * ngrps
-    k2 = k1 + ngrps
-    ydata = (hdu[0].data[k1:k2, pix_x, pix_y]).astype(float)
+    startDNvals = np.arange(0.0, 6000.0, 200.0)
+    chival = np.zeros((nints, len(startDNvals)))
+    ints = range(nints)
+    for i, startDN in enumerate(startDNvals):
+        (DN_exp, cor, cor_mod) = calc_lincor(mod[1], max_ramp_aveDN, startDN)
+        for k in ints:
+            gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k)
+            ggnum, gdata, aveDN, diffDN = get_good_ramp(gnum, ydata)
+            # correct the ramps
+            ycor = cor_mod(gdata)
+            gdata_cor = gdata * ycor
+            # calculate the chisqr for each integration set of differences
+            # from the expected flat line
+            diffDN = np.diff(gdata_cor)
+            aveDN = 0.5 * (gdata[:-1] + gdata[1:])
+            cindxs, = np.where(aveDN > 10000.0)
+            chival[k, i] = np.sum((diffDN[aveDN > 15000.0] - mod[1].c0) ** 2)
 
-    # create clean versions of the data
-    gindxs, = np.where((ydata > 0.0) & (ydata < 58000.0))
-    gdata = ydata[gindxs]
-    # subtract the exponential portion of the model
-    # gdata = gdata - mod[0](gdata)
-    aveDN = 0.5 * (gdata[:-1] + gdata[1:])
+    minindx = np.zeros((nints), dtype=int)
+    for k in ints[1:]:
+        ax[6].plot(startDNvals, chival[k, :], label=f"Int #{k+1}")
+        minindx[k] = np.argmin(chival[k, :])
+    startDN = startDNvals[minindx[max_ramp_k]]
 
-    # compute the expected 2pt diffs from the fit w/o the exponential
-    #   need to use the real spacing between groups as the fit is done
-    #   to the DN/group -> gotta get the spaceing right
-    diff_exp = poly_mod(aveDN)
-    diff_ideal = np.full((len(aveDN)), poly_mod.c0)
-    # now create ramps from both
-    startDN = args.startDN
-    DN_exp = np.cumsum(diff_exp) + startDN
-    DN_ideal = np.cumsum(diff_ideal) + startDN
-    cor = DN_ideal / DN_exp
-    ax[3].plot(DN_exp, cor, label=f"Int #{k+1}")
+    # get the correction
+    (DN_exp, cor, cor_mod) = calc_lincor(mod[1], max_ramp_aveDN, startDN)
 
-    # fit the corretion to a polynomical
-    cor_mod_init = Polynomial1D(degree=3)
-    # fit_cor = LinearLSQFitter()
-    cor_mod = fit(cor_mod_init, DN_exp, cor, maxiter=10000)
-    # print(cor_mod)
-    ax[3].plot(DN_exp, cor_mod(DN_exp), "k--", label="Cor Poly1D")
+    ax[3].plot(DN_exp, cor, "ko", label=f"Int #{max_ramp_k+1} StartDN={startDN:.1f}")
+    ax[3].plot(mod_x, cor_mod(mod_x), "k--", label="Cor Poly1D")
 
     # apply the correction
     line_init = Linear1D()
     fit_line = LinearLSQFitter()
+    intslopes = np.zeros((nints))
     for k in range(nints):
-        k1 = k * ngrps
-        k2 = k1 + ngrps
-        ydata = (hdu[0].data[k1:k2, pix_x, pix_y]).astype(float)
-
-        # create clean versions of the data
-        gindxs, = np.where((ydata > 0.0) & (ydata < 55000.0))
-        gdata = ydata[gindxs]
-        ggnum = gnum[gindxs]
+        gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k)
+        ggnum, gdata, aveDN, diffDN = get_good_ramp(gnum, ydata)
 
         # correct the ramps and plot
-        ycor = np.interp(gdata, DN_exp, cor)
+        ycor = cor_mod(gdata)
         gdata_cor = gdata * ycor
         ax[0].plot(ggnum, gdata_cor, "--", label=f"Cor Int #{k+1}")
 
         # plot the corrected ramp divided by a linear fit
-        line_mod = fit_line(line_init, ggnum[5:], gdata_cor[5:])
+        nrej = 5
+        line_mod = fit_line(line_init, ggnum[nrej:], gdata_cor[nrej:])
+        intslopes[k] = line_mod.slope.value
         ax[4].plot(ggnum, gdata_cor / line_mod(ggnum), "--", label=f"Int #{k+1}")
 
         # plot the 2pt diffs versus average DN
@@ -170,7 +161,12 @@ if __name__ == "__main__":
         if k == 0:
             ax[5].set_ylim(0.9 * min(diffDN), 1.1 * max(diffDN))
 
-    ax[5].plot(ax[5].get_xlim(), [poly_mod.c0, poly_mod.c0], "k--", label="c_0")
+    ax[5].plot(ax[5].get_xlim(), [mod[1].c0, mod[1].c0], "k--", label="c_0")
+
+    aveslope = np.average(intslopes)
+    ax[7].plot(np.array(ints) + 1, intslopes / aveslope, 'ko', label=f"Ave = {aveslope:.2f}")
+    ax[7].set_xlabel("integration #")
+    ax[7].set_ylabel("slope / ave")
 
     # finish the plots
     ax[0].set_xlabel("group #")
@@ -178,7 +174,7 @@ if __name__ == "__main__":
 
     ax[4].set_xlabel("group #")
     ax[4].set_ylabel("DN_cor/line_fit")
-    ax[4].set_ylim(0.98, 1.02)
+    ax[4].set_ylim(0.99, 1.01)
 
     ax[1].set_xlabel("group #")
     ax[1].set_ylabel("DN/group")
@@ -191,6 +187,9 @@ if __name__ == "__main__":
 
     ax[3].set_xlabel("DN")
     ax[3].set_ylabel("Mult Correction")
+
+    ax[6].set_xlabel("startDN")
+    ax[6].set_ylabel("chisqr")
 
     for k in range(len(ax)):
         ax[k].legend()
