@@ -3,9 +3,9 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 from astropy.io import fits
-from astropy.modeling.models import Polynomial1D
+from astropy.modeling.models import Polynomial1D, Linear1D
 from expmodel import Exponential1D
-from astropy.modeling.fitting import LevMarLSQFitter  # , LinearLSQFitter
+from astropy.modeling.fitting import LevMarLSQFitter, LinearLSQFitter
 
 if __name__ == "__main__":
 
@@ -51,7 +51,7 @@ if __name__ == "__main__":
         ax[0].plot(gnum, ydata, label=f"Int #{k+1}")
 
         # create clean versions of the data
-        gindxs, = np.where((ydata > 0.0) & (ydata < 55000.))
+        gindxs, = np.where((ydata > 0.0) & (ydata < 55000.0))
         gdata = ydata[gindxs]
         ggnum = gnum[gindxs]
 
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     mod_init = Exponential1D(
         x_0=-2000.0,
         amplitude=2500.0,
-        bounds={"amplitude": [100.0, 5000.0], "x_0": [-10000., 0.0]},
+        bounds={"amplitude": [100.0, 5000.0], "x_0": [-10000.0, 0.0]},
     ) + Polynomial1D(degree=2)
 
     fit = LevMarLSQFitter()
@@ -110,8 +110,10 @@ if __name__ == "__main__":
     ydata = (hdu[0].data[k1:k2, pix_x, pix_y]).astype(float)
 
     # create clean versions of the data
-    gindxs, = np.where((ydata > 0.0) & (ydata < 58000.))
+    gindxs, = np.where((ydata > 0.0) & (ydata < 58000.0))
     gdata = ydata[gindxs]
+    # subtract the exponential portion of the model
+    # gdata = gdata - mod[0](gdata)
     aveDN = 0.5 * (gdata[:-1] + gdata[1:])
 
     # compute the expected 2pt diffs from the fit w/o the exponential
@@ -120,8 +122,9 @@ if __name__ == "__main__":
     diff_exp = poly_mod(aveDN)
     diff_ideal = np.full((len(aveDN)), poly_mod.c0)
     # now create ramps from both
-    DN_exp = np.cumsum(diff_exp)
-    DN_ideal = np.cumsum(diff_ideal)
+    startDN = 3000.
+    DN_exp = np.cumsum(diff_exp) + startDN
+    DN_ideal = np.cumsum(diff_ideal) + startDN
     cor = DN_ideal / DN_exp
     ax[3].plot(DN_exp, cor, label=f"Int #{k+1}")
 
@@ -130,42 +133,54 @@ if __name__ == "__main__":
     # fit_cor = LinearLSQFitter()
     cor_mod = fit(cor_mod_init, DN_exp, cor, maxiter=10000)
     # print(cor_mod)
-    ax[3].plot(DN_exp, cor_mod(DN_exp), 'k--', label='Cor Poly1D')
+    ax[3].plot(DN_exp, cor_mod(DN_exp), "k--", label="Cor Poly1D")
 
     # apply the correction
+    line_init = Linear1D()
+    fit_line = LinearLSQFitter()
     for k in range(nints):
         k1 = k * ngrps
         k2 = k1 + ngrps
         ydata = (hdu[0].data[k1:k2, pix_x, pix_y]).astype(float)
 
         # create clean versions of the data
-        gindxs, = np.where((ydata > 0.0) & (ydata < 55000.))
+        gindxs, = np.where((ydata > 0.0) & (ydata < 55000.0))
         gdata = ydata[gindxs]
         ggnum = gnum[gindxs]
 
         # correct the ramps and plot
         ycor = np.interp(gdata, DN_exp, cor)
         gdata_cor = gdata * ycor
-        ax[4].plot(ggnum, gdata_cor, label=f"Int #{k+1}")
+        ax[0].plot(ggnum, gdata_cor, "--", label=f"Cor Int #{k+1}")
+
+        # plot the corrected ramp divided by a linear fit
+        line_mod = fit_line(line_init, ggnum[5:], gdata_cor[5:])
+        ax[4].plot(ggnum, gdata_cor / line_mod(ggnum), "--", label=f"Int #{k+1}")
 
         # plot the 2pt diffs versus average DN
         diffDN = np.diff(gdata_cor)
         aveDN = 0.5 * (gdata[:-1] + gdata[1:])
         ax[5].plot(aveDN, diffDN, label=f"Int #{k+1}")
 
+        # diffDN_orig = np.diff(gdata)
+        # ax[2].plot(aveDN, diffDN_orig - mod[0](aveDN), '--')
+
         if k == 0:
             ax[5].set_ylim(0.9 * min(diffDN), 1.1 * max(diffDN))
 
-    ax[5].plot(ax[5].get_xlim(), [poly_mod.c0, poly_mod.c0], "k--", label='c_0')
+    ax[5].plot(ax[5].get_xlim(), [poly_mod.c0, poly_mod.c0], "k--", label="c_0")
 
     # finish the plots
     ax[0].set_xlabel("group #")
     ax[0].set_ylabel("DN")
+
     ax[4].set_xlabel("group #")
-    ax[4].set_ylabel("DN_cor")
+    ax[4].set_ylabel("DN_cor/line_fit")
+    ax[4].set_ylim(0.98, 1.02)
 
     ax[1].set_xlabel("group #")
     ax[1].set_ylabel("DN/group")
+
     ax[5].set_xlabel("DN")
     ax[5].set_ylabel("DN_cor/group")
 
