@@ -19,6 +19,8 @@ if __name__ == "__main__":
         nargs=2,
         default=[150, 150],
     )
+    parser.add_argument("--startDN", help="DN for start of ramp in correction",
+                        type=float, default=0.0)
     parser.add_argument("--png", help="save figure as an png file", action="store_true")
     parser.add_argument("--pdf", help="save figure as a pdf file", action="store_true")
     args = parser.parse_args()
@@ -122,7 +124,7 @@ if __name__ == "__main__":
     diff_exp = poly_mod(aveDN)
     diff_ideal = np.full((len(aveDN)), poly_mod.c0)
     # now create ramps from both
-    startDN = 3000.
+    startDN = args.startDN
     DN_exp = np.cumsum(diff_exp) + startDN
     DN_ideal = np.cumsum(diff_ideal) + startDN
     cor = DN_ideal / DN_exp
