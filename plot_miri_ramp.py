@@ -19,7 +19,7 @@ if __name__ == "__main__":
         metavar=("x", "y"),
         type=int,
         nargs=2,
-        default=[150, 150],
+        default=[180, 180],
     )
     # parser.add_argument(
     #     "--startDN", help="DN for start of ramp in correction", type=float, default=0.0
@@ -29,7 +29,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # filename = "Data/JPL8/M2_RSCD_Supplement/MIRI_5604_16_S_20180323-170413_SCE1.fits"
-    filename = "Data/MIRI_5604_111_S_20180323-235653_SCE1.fits"
+    # filename = "Data/MIRI_5604_111_S_20180323-235653_SCE1.fits"
+    filename = "Data/MIRI_5692_18_S_20191017-193412_SCE1.fits"
     hdu = fits.open(filename)
 
     fig, sax = plt.subplots(ncols=4, nrows=2, figsize=(18, 9))
@@ -101,7 +102,7 @@ if __name__ == "__main__":
     #    (DN_exp, cor, cor_mod) = calc_lincor(mod[1], gdata, args.startDN)
     #    ax[3].plot(DN_exp, cor, "--", label=f"Int #{k+1}")
 
-    startDNvals = np.arange(0.0, 6000.0, 200.0)
+    startDNvals = np.arange(0.0, 20000.0, 200.0)
     chival = np.zeros((nints, len(startDNvals)))
     ints = range(nints)
     for i, startDN in enumerate(startDNvals):
