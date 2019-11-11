@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
     # filename = "Data/JPL8/M2_RSCD_Supplement/MIRI_5604_16_S_20180323-170413_SCE1.fits"
     # filename = "Data/MIRI_5604_111_S_20180323-235653_SCE1.fits"
-    filename = "Data/MIRI_5692_18_S_20191017-193412_SCE1.fits"
+    filename = "Data/MIRI_5692_17_S_20191017-184107_SCE1.fits"
     hdu = fits.open(filename)
 
     fig, sax = plt.subplots(ncols=4, nrows=2, figsize=(18, 9))
@@ -53,6 +53,9 @@ if __name__ == "__main__":
     x = []
     y = []
 
+    # for plotting
+    pcol = ["b", "g", "r", "c"]
+
     # plot all integrations folded
     mm_delta = 0.0
     max_ramp_k = -1
@@ -60,13 +63,13 @@ if __name__ == "__main__":
         gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k)
         ggnum, gdata, aveDN, diffDN = get_good_ramp(gnum, ydata)
 
-        ax[0].plot(gnum, ydata, label=f"Int #{k+1}")
+        ax[0].plot(gnum, ydata, label=f"Int #{k+1}", color=pcol[k])
 
         # plot the 2pt diffs
-        ax[1].plot(ggnum[:-1], diffDN, label=f"Int #{k+1}")
+        ax[1].plot(ggnum[:-1], diffDN, label=f"Int #{k+1}", color=pcol[k])
 
         # plot the 2pt diffs versus average DN
-        ax[2].plot(aveDN, diffDN, label=f"Int #{k+1}")
+        ax[2].plot(aveDN, diffDN, label=f"Int #{k+1}", color=pcol[k])
 
         if k == 0:
             ax[1].set_ylim(0.9 * min(diffDN), 1.1 * max(diffDN))
@@ -122,7 +125,7 @@ if __name__ == "__main__":
 
     minindx = np.zeros((nints), dtype=int)
     for k in ints[1:]:
-        ax[6].plot(startDNvals, chival[k, :], label=f"Int #{k+1}")
+        ax[6].plot(startDNvals, chival[k, :], label=f"Int #{k+1}", color=pcol[k])
         minindx[k] = np.argmin(chival[k, :])
     startDN = startDNvals[minindx[max_ramp_k]]
 
@@ -143,18 +146,20 @@ if __name__ == "__main__":
         # correct the ramps and plot
         ycor = cor_mod(gdata)
         gdata_cor = gdata * ycor
-        ax[0].plot(ggnum, gdata_cor, "--", label=f"Cor Int #{k+1}")
+        ax[0].plot(ggnum, gdata_cor, "--", label=f"Cor Int #{k+1}", color=pcol[k])
 
         # plot the corrected ramp divided by a linear fit
         nrej = 5
         line_mod = fit_line(line_init, ggnum[nrej:], gdata_cor[nrej:])
         intslopes[k] = line_mod.slope.value
-        ax[4].plot(ggnum, gdata_cor / line_mod(ggnum), "--", label=f"Int #{k+1}")
+        ax[4].plot(
+            ggnum, gdata_cor / line_mod(ggnum), "--", label=f"Int #{k+1}", color=pcol[k]
+        )
 
         # plot the 2pt diffs versus average DN
         diffDN = np.diff(gdata_cor)
         aveDN = 0.5 * (gdata[:-1] + gdata[1:])
-        ax[5].plot(aveDN, diffDN, label=f"Int #{k+1}")
+        ax[5].plot(aveDN, diffDN, label=f"Int #{k+1}", color=pcol[k])
 
         # diffDN_orig = np.diff(gdata)
         # ax[2].plot(aveDN, diffDN_orig - mod[0](aveDN), '--')
@@ -165,9 +170,94 @@ if __name__ == "__main__":
     ax[5].plot(ax[5].get_xlim(), [mod[1].c0, mod[1].c0], "k--", label="c_0")
 
     aveslope = np.average(intslopes)
-    ax[7].plot(np.array(ints) + 1, intslopes / aveslope, 'ko', label=f"Ave = {aveslope:.2f}")
+    ax[7].plot(
+        np.array(ints) + 1,
+        intslopes / aveslope,
+        "ko",
+        label=f"Exp 1: Ave = {aveslope:.2f}",
+    )
+
+    # ***
+
+    filenames = [
+        "Data/MIRI_5692_18_S_20191017-193412_SCE1.fits",
+        "Data/MIRI_5692_19_S_20191017-202738_SCE1.fits",
+        "Data/MIRI_5692_20_S_20191017-212044_SCE1.fits",
+        "Data/MIRI_5692_21_S_20191017-221350_SCE1.fits",
+        "Data/MIRI_5694_21_S_20191018-170349_SCE1.fits",
+        "Data/MIRI_5694_22_S_20191018-172524_SCE1.fits",
+        "Data/MIRI_5694_23_S_20191018-174658_SCE1.fits",
+        "Data/MIRI_5694_24_S_20191018-180833_SCE1.fits",
+        "Data/MIRI_5694_25_S_20191018-183008_SCE1.fits",
+    ]
+
+    lin_off_val = 0.01
+    for z, cfile in enumerate(filenames):
+        hdu = fits.open(cfile)
+        off_int = (z + 1) * nints
+
+        # plot all integrations folded
+        for k in range(nints):
+            gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k)
+            ggnum, gdata, aveDN, diffDN = get_good_ramp(gnum, ydata)
+
+            ax[0].plot(gnum, ydata, color=pcol[k])
+
+            # plot the 2pt diffs
+            ax[1].plot(ggnum[:-1], diffDN, color=pcol[k])
+
+            # plot the 2pt diffs versus average DN
+            ax[2].plot(aveDN, diffDN, color=pcol[k])
+
+        # apply the correction
+        line_init = Linear1D()
+        fit_line = LinearLSQFitter()
+        intslopes = np.zeros((nints))
+        for k in range(nints):
+            gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k)
+            ggnum, gdata, aveDN, diffDN = get_good_ramp(gnum, ydata)
+
+            # correct the ramps and plot
+            ycor = cor_mod(gdata)
+            gdata_cor = gdata * ycor
+            ax[0].plot(
+                ggnum, gdata_cor, "--", color=pcol[k]
+            )  # , label=f"Cor Int #{k+1+off_int}")
+
+            # plot the corrected ramp divided by a linear fit
+            nrej = 10
+            line_mod = fit_line(line_init, ggnum[nrej:], gdata_cor[nrej:])
+            intslopes[k] = line_mod.slope.value
+            ax[4].plot(
+                ggnum,
+                gdata_cor / line_mod(ggnum) + z * lin_off_val,
+                "--",
+                color=pcol[k],
+            )
+
+            # plot the 2pt diffs versus average DN
+            diffDN = np.diff(gdata_cor)
+            aveDN = 0.5 * (gdata[:-1] + gdata[1:])
+            ax[5].plot(aveDN, diffDN)
+
+        aveslope = np.average(intslopes)
+        ax[7].plot(
+            np.array(ints) + 1 + off_int,
+            intslopes / aveslope,
+            "o",
+            label=f"Exp {z+2}: Ave = {aveslope:.2f}",
+        )
+
+    # ***
+
+    ax[2].plot(mod_x, mod(mod_x), "k--", label="Exp1D+Poly1D")
+    ax[2].plot(mod_x, mod[1](mod_x), "k-.", label="Poly1D only")
+
+    ax[5].plot(ax[5].get_xlim(), [mod[1].c0, mod[1].c0], "k--", label="c_0")
+
     ax[7].set_xlabel("integration #")
     ax[7].set_ylabel("slope / ave")
+    ax[7].set_ylim(0.99, 1.05)
 
     # finish the plots
     ax[0].set_xlabel("group #")
@@ -175,7 +265,7 @@ if __name__ == "__main__":
 
     ax[4].set_xlabel("group #")
     ax[4].set_ylabel("DN_cor/line_fit")
-    ax[4].set_ylim(0.99, 1.01)
+    ax[4].set_ylim(0.99, 1.01 + lin_off_val * len(filenames))
 
     ax[1].set_xlabel("group #")
     ax[1].set_ylabel("DN/group")
@@ -194,6 +284,8 @@ if __name__ == "__main__":
 
     for k in range(len(ax)):
         ax[k].legend()
+
+    ax[k].legend(ncol=2)
 
     fig.suptitle(f"{filename}; Pixel ({pix_x}, {pix_y})")
 
