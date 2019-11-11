@@ -19,7 +19,7 @@ if __name__ == "__main__":
         metavar=("x", "y"),
         type=int,
         nargs=2,
-        default=[180, 180],
+        default=[512, 512],
     )
     # parser.add_argument(
     #     "--startDN", help="DN for start of ramp in correction", type=float, default=0.0
