@@ -28,10 +28,19 @@ if __name__ == "__main__":
     parser.add_argument("--pdf", help="save figure as a pdf file", action="store_true")
     args = parser.parse_args()
 
-    # filename = "Data/JPL8/M2_RSCD_Supplement/MIRI_5604_16_S_20180323-170413_SCE1.fits"
-    # filename = "Data/MIRI_5604_111_S_20180323-235653_SCE1.fits"
-    filename = "Data/MIRI_5692_17_S_20191017-184107_SCE1.fits"
-    hdu = fits.open(filename)
+    filenames = [
+        "Data/MIRI_5692_17_S_20191017-184107_SCE1.fits",
+        "Data/MIRI_5692_18_S_20191017-193412_SCE1.fits",
+        "Data/MIRI_5692_19_S_20191017-202738_SCE1.fits",
+        "Data/MIRI_5692_20_S_20191017-212044_SCE1.fits",
+        "Data/MIRI_5692_21_S_20191017-221350_SCE1.fits",
+        "Data/MIRI_5694_21_S_20191018-170349_SCE1.fits",
+        "Data/MIRI_5694_22_S_20191018-172524_SCE1.fits",
+        "Data/MIRI_5694_23_S_20191018-174658_SCE1.fits",
+        "Data/MIRI_5694_24_S_20191018-180833_SCE1.fits",
+        "Data/MIRI_5694_25_S_20191018-183008_SCE1.fits",
+    ]
+    hdu = fits.open(filenames[0])
 
     fig, sax = plt.subplots(ncols=4, nrows=2, figsize=(18, 9))
     ax = [
@@ -176,17 +185,8 @@ if __name__ == "__main__":
 
     # ***
 
-    filenames = [
-        "Data/MIRI_5692_18_S_20191017-193412_SCE1.fits",
-        "Data/MIRI_5692_19_S_20191017-202738_SCE1.fits",
-        "Data/MIRI_5692_20_S_20191017-212044_SCE1.fits",
-        "Data/MIRI_5692_21_S_20191017-221350_SCE1.fits",
-        "Data/MIRI_5694_21_S_20191018-170349_SCE1.fits",
-        "Data/MIRI_5694_22_S_20191018-172524_SCE1.fits",
-        "Data/MIRI_5694_23_S_20191018-174658_SCE1.fits",
-        "Data/MIRI_5694_24_S_20191018-180833_SCE1.fits",
-        "Data/MIRI_5694_25_S_20191018-183008_SCE1.fits",
-    ]
+    filenames = all_files[1:]
+
     if args.primeonly:
         filenames = []
 
@@ -286,7 +286,7 @@ if __name__ == "__main__":
 
     ax[k].legend(ncol=2)
 
-    fig.suptitle(f"{filename}; Pixel ({pix_x}, {pix_y})")
+    fig.suptitle(f"{filenames[0]}; Pixel ({pix_x}, {pix_y})")
 
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
