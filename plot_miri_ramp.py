@@ -21,9 +21,9 @@ if __name__ == "__main__":
         nargs=2,
         default=[512, 512],
     )
-    # parser.add_argument(
-    #     "--startDN", help="DN for start of ramp in correction", type=float, default=0.0
-    # )
+    parser.add_argument(
+        "--primeonly", help="plot the primary exposure", action="store_true"
+    )
     parser.add_argument("--png", help="save figure as an png file", action="store_true")
     parser.add_argument("--pdf", help="save figure as a pdf file", action="store_true")
     args = parser.parse_args()
@@ -45,7 +45,7 @@ if __name__ == "__main__":
         sax[0, 3],
     ]
 
-    pix_y, pix_x = args.pixel
+    pix_x, pix_y = args.pixel
     ngrps = hdu[0].header["NGROUPS"]
     nints = hdu[0].header["NINT"]
 
@@ -92,11 +92,10 @@ if __name__ == "__main__":
     x = np.concatenate(x)
     y = np.concatenate(y)
     mod = fit_diffs(x, y)
+    polymod = mod[2]
 
     # plot the model
     mod_x = np.linspace(0.0, 65000.0, num=100)
-    ax[2].plot(mod_x, mod(mod_x), "k--", label="Exp1D+Poly1D")
-    ax[2].plot(mod_x, mod[1](mod_x), "k-.", label="Poly1D only")
 
     # for k in range(nints):
     #    gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k)
@@ -109,7 +108,7 @@ if __name__ == "__main__":
     chival = np.zeros((nints, len(startDNvals)))
     ints = range(nints)
     for i, startDN in enumerate(startDNvals):
-        (DN_exp, cor, cor_mod) = calc_lincor(mod[1], max_ramp_aveDN, startDN)
+        (DN_exp, cor, cor_mod) = calc_lincor(polymod, max_ramp_aveDN, startDN)
         for k in ints:
             gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k)
             ggnum, gdata, aveDN, diffDN = get_good_ramp(gnum, ydata)
@@ -121,7 +120,7 @@ if __name__ == "__main__":
             diffDN = np.diff(gdata_cor)
             aveDN = 0.5 * (gdata[:-1] + gdata[1:])
             cindxs, = np.where(aveDN > 10000.0)
-            chival[k, i] = np.sum((diffDN[aveDN > 15000.0] - mod[1].c0) ** 2)
+            chival[k, i] = np.sum((diffDN[aveDN > 15000.0] - polymod.c0) ** 2)
 
     minindx = np.zeros((nints), dtype=int)
     for k in ints[1:]:
@@ -130,7 +129,7 @@ if __name__ == "__main__":
     startDN = startDNvals[minindx[max_ramp_k]]
 
     # get the correction
-    (DN_exp, cor, cor_mod) = calc_lincor(mod[1], max_ramp_aveDN, startDN)
+    (DN_exp, cor, cor_mod) = calc_lincor(polymod, max_ramp_aveDN, startDN)
 
     ax[3].plot(DN_exp, cor, "ko", label=f"Int #{max_ramp_k+1} StartDN={startDN:.1f}")
     ax[3].plot(mod_x, cor_mod(mod_x), "k--", label="Cor Poly1D")
@@ -167,8 +166,6 @@ if __name__ == "__main__":
         if k == 0:
             ax[5].set_ylim(0.9 * min(diffDN), 1.1 * max(diffDN))
 
-    ax[5].plot(ax[5].get_xlim(), [mod[1].c0, mod[1].c0], "k--", label="c_0")
-
     aveslope = np.average(intslopes)
     ax[7].plot(
         np.array(ints) + 1,
@@ -190,6 +187,8 @@ if __name__ == "__main__":
         "Data/MIRI_5694_24_S_20191018-180833_SCE1.fits",
         "Data/MIRI_5694_25_S_20191018-183008_SCE1.fits",
     ]
+    if args.primeonly:
+        filenames = []
 
     lin_off_val = 0.01
     for z, cfile in enumerate(filenames):
@@ -251,9 +250,9 @@ if __name__ == "__main__":
     # ***
 
     ax[2].plot(mod_x, mod(mod_x), "k--", label="Exp1D+Poly1D")
-    ax[2].plot(mod_x, mod[1](mod_x), "k-.", label="Poly1D only")
+    ax[2].plot(mod_x, polymod(mod_x), "k-.", label="Poly1D only")
 
-    ax[5].plot(ax[5].get_xlim(), [mod[1].c0, mod[1].c0], "k--", label="c_0")
+    ax[5].plot(ax[5].get_xlim(), [polymod.c0, polymod.c0], "k--", label="c_0")
 
     ax[7].set_xlabel("integration #")
     ax[7].set_ylabel("slope / ave")

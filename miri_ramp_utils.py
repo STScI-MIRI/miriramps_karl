@@ -1,7 +1,7 @@
 import numpy as np
 
 from expmodel import Exponential1D
-from astropy.modeling.models import Polynomial1D
+from astropy.modeling.models import Polynomial1D, Shift
 from astropy.modeling.fitting import LevMarLSQFitter
 
 
@@ -98,15 +98,20 @@ def fit_diffs(x, y, ndegree=2):
     mod : astropy model
         fitted model
     """
-    mod_init = Exponential1D(
-        x_0=-1000.0,
-        amplitude=2500.0,
-        bounds={"amplitude": [100.0, 5000.0], "x_0": [-10000.0, 1000.0]},
+    mod_init = (
+        Shift(offset=5000.0, bounds={"offset": [-100000.0, 20000.0]})
+        | Exponential1D(
+            x_0=-1000.0,
+            amplitude=2500.0,
+            bounds={"amplitude": [100.0, 100000.0], "x_0": [-10000.0, -0.1]},
+        )
     ) + Polynomial1D(degree=ndegree)
 
     fit = LevMarLSQFitter()
 
     mod = fit(mod_init, x, y, maxiter=10000)
+
+    print(mod)
 
     return mod
 
