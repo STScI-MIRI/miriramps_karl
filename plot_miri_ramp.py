@@ -22,7 +22,7 @@ if __name__ == "__main__":
         default=[512, 512],
     )
     parser.add_argument(
-        "--nrej", help="number of groups to ignore in linear fit", type=int, default=25
+        "--nrej", help="number of groups to ignore in linear fit", type=int, default=24
     )
     parser.add_argument(
         "--primeonly", help="plot the primary exposure", action="store_true"
@@ -138,7 +138,7 @@ if __name__ == "__main__":
 
     minindx = np.zeros((nints), dtype=int)
     for k in ints[1:]:
-        ax[6].plot(startDNvals, chival[k, :], label=f"Int #{k+1}", color=pcol[k])
+        # ax[6].plot(startDNvals, chival[k, :], label=f"Int #{k+1}", color=pcol[k])
         minindx[k] = np.argmin(chival[k, :])
     startDN = startDNvals[minindx[max_ramp_k]]
 
@@ -152,6 +152,7 @@ if __name__ == "__main__":
     line_init = Linear1D()
     fit_line = LinearLSQFitter()
     intslopes = np.zeros((nints))
+    linfit_metric = np.zeros((nints))
     for k in range(nints):
         gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k)
         ggnum, gdata, aveDN, diffDN = get_good_ramp(gnum, ydata)
@@ -166,9 +167,12 @@ if __name__ == "__main__":
         intslopes[k] = line_mod.slope.value
         linfit_ratio = gdata_cor / line_mod(ggnum)
         ax[4].plot(ggnum, linfit_ratio, "--", label=f"Int #{k+1}", color=pcol[k])
+        ax[4].plot(ggnum, np.full((len(ggnum)), 1.0), "k--")
 
         # compute metric on deviations from the linear fit
-        linfit_metric = linfit_ratio
+        linfit_metric[k] = np.sum(np.power(linfit_ratio[nrej:] - 1.0, 2.0)) / len(
+            linfit_ratio[nrej:]
+        )
 
         # plot the 2pt diffs versus average DN
         diffDN = np.diff(gdata_cor)
@@ -185,6 +189,13 @@ if __name__ == "__main__":
     ax[7].plot(
         np.array(ints) + 1,
         intslopes / aveslope,
+        "ko",
+        label=f"Exp 1: Ave = {aveslope:.2f}",
+    )
+
+    ax[6].plot(
+        np.array(ints) + 1,
+        np.sqrt(linfit_metric),
         "ko",
         label=f"Exp 1: Ave = {aveslope:.2f}",
     )
@@ -218,6 +229,7 @@ if __name__ == "__main__":
         line_init = Linear1D()
         fit_line = LinearLSQFitter()
         intslopes = np.zeros((nints))
+        linfit_metric = np.zeros((nints))
         for k in range(nints):
             gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k)
             ggnum, gdata, aveDN, diffDN = get_good_ramp(gnum, ydata)
@@ -225,18 +237,18 @@ if __name__ == "__main__":
             # correct the ramps and plot
             ycor = cor_mod(gdata)
             gdata_cor = gdata * ycor
-            ax[0].plot(
-                ggnum, gdata_cor, "--", color=pcol[k]
-            )  # , label=f"Cor Int #{k+1+off_int}")
+            ax[0].plot(ggnum, gdata_cor, "--", color=pcol[k])
 
             # plot the corrected ramp divided by a linear fit
             line_mod = fit_line(line_init, ggnum[nrej:], gdata_cor[nrej:])
             intslopes[k] = line_mod.slope.value
-            ax[4].plot(
-                ggnum,
-                gdata_cor / line_mod(ggnum) + z * lin_off_val,
-                "--",
-                color=pcol[k],
+            linfit_ratio = gdata_cor / line_mod(ggnum)
+            ax[4].plot(ggnum, linfit_ratio + (z + 1) * lin_off_val, "--", color=pcol[k])
+            ax[4].plot(ggnum, (z + 1) * lin_off_val + np.full((len(ggnum)), 1.0), "k--")
+
+            # compute metric on deviations from the linear fit
+            linfit_metric[k] = np.sum(np.power(linfit_ratio[nrej:] - 1.0, 2.0)) / len(
+                linfit_ratio[nrej:]
             )
 
             # plot the 2pt diffs versus average DN
@@ -248,6 +260,13 @@ if __name__ == "__main__":
         ax[7].plot(
             np.array(ints) + 1 + off_int,
             intslopes / aveslope,
+            "o",
+            label=f"Exp {z+2}: Ave = {aveslope:.2f}",
+        )
+
+        ax[6].plot(
+            np.array(ints) + 1 + off_int,
+            np.sqrt(linfit_metric),
             "o",
             label=f"Exp {z+2}: Ave = {aveslope:.2f}",
         )
@@ -284,19 +303,22 @@ if __name__ == "__main__":
     ax[3].set_xlabel("DN")
     ax[3].set_ylabel("Mult Correction")
 
-    ax[6].set_xlabel("startDN")
-    ax[6].set_ylabel("chisqr")
+    ax[6].set_xlabel("integration #")
+    ax[6].set_ylabel(r"$\sigma$ dev from linfit per group")
 
     for k in range(len(ax)):
         ax[k].legend()
 
-    ax[k].legend(ncol=2)
+    ax[7].legend(ncol=2)
+    ax[6].legend().set_visible(False)
 
     fig.suptitle(f"{all_filenames[0]}; Pixel ({pix_x}, {pix_y})")
 
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
-    out_basename = f"plot_miri_ramp_{pix_x}_{pix_y}"
+    out_basename = f"plot_miri_ramp_{pix_x}_{pix_y}_nreg{args.nrej+1}"
+    if args.primeonly:
+        out_basename += "_primeonly"
     if args.png:
         fig.savefig(out_basename)
     elif args.pdf:
