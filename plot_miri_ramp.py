@@ -22,13 +22,16 @@ if __name__ == "__main__":
         default=[512, 512],
     )
     parser.add_argument(
+        "--nrej", help="number of groups to ignore in linear fit", type=int, default=25
+    )
+    parser.add_argument(
         "--primeonly", help="plot the primary exposure", action="store_true"
     )
     parser.add_argument("--png", help="save figure as an png file", action="store_true")
     parser.add_argument("--pdf", help="save figure as a pdf file", action="store_true")
     args = parser.parse_args()
 
-    filenames = [
+    all_filenames = [
         "Data/MIRI_5692_17_S_20191017-184107_SCE1.fits",
         "Data/MIRI_5692_18_S_20191017-193412_SCE1.fits",
         "Data/MIRI_5692_19_S_20191017-202738_SCE1.fits",
@@ -40,7 +43,8 @@ if __name__ == "__main__":
         "Data/MIRI_5694_24_S_20191018-180833_SCE1.fits",
         "Data/MIRI_5694_25_S_20191018-183008_SCE1.fits",
     ]
-    hdu = fits.open(filenames[0])
+    # all_filenames = all_filenames[::-1]
+    hdu = fits.open(all_filenames[0])
 
     fig, sax = plt.subplots(ncols=4, nrows=2, figsize=(18, 9))
     ax = [
@@ -57,6 +61,7 @@ if __name__ == "__main__":
     pix_x, pix_y = args.pixel
     ngrps = hdu[0].header["NGROUPS"]
     nints = hdu[0].header["NINT"]
+    nrej = args.nrej
 
     # for fitting
     x = []
@@ -157,12 +162,13 @@ if __name__ == "__main__":
         ax[0].plot(ggnum, gdata_cor, "--", label=f"Cor Int #{k+1}", color=pcol[k])
 
         # plot the corrected ramp divided by a linear fit
-        nrej = 5
         line_mod = fit_line(line_init, ggnum[nrej:], gdata_cor[nrej:])
         intslopes[k] = line_mod.slope.value
-        ax[4].plot(
-            ggnum, gdata_cor / line_mod(ggnum), "--", label=f"Int #{k+1}", color=pcol[k]
-        )
+        linfit_ratio = gdata_cor / line_mod(ggnum)
+        ax[4].plot(ggnum, linfit_ratio, "--", label=f"Int #{k+1}", color=pcol[k])
+
+        # compute metric on deviations from the linear fit
+        linfit_metric = linfit_ratio
 
         # plot the 2pt diffs versus average DN
         diffDN = np.diff(gdata_cor)
@@ -185,10 +191,10 @@ if __name__ == "__main__":
 
     # ***
 
-    filenames = all_files[1:]
-
     if args.primeonly:
         filenames = []
+    else:
+        filenames = all_filenames[1:]
 
     lin_off_val = 0.01
     for z, cfile in enumerate(filenames):
@@ -224,7 +230,6 @@ if __name__ == "__main__":
             )  # , label=f"Cor Int #{k+1+off_int}")
 
             # plot the corrected ramp divided by a linear fit
-            nrej = 10
             line_mod = fit_line(line_init, ggnum[nrej:], gdata_cor[nrej:])
             intslopes[k] = line_mod.slope.value
             ax[4].plot(
@@ -265,6 +270,7 @@ if __name__ == "__main__":
     ax[4].set_xlabel("group #")
     ax[4].set_ylabel("DN_cor/line_fit")
     ax[4].set_ylim(0.99, 1.01 + lin_off_val * len(filenames))
+    ax[4].plot(nrej * np.full((2), 1.0), ax[4].get_ylim(), "k--", label="nrej")
 
     ax[1].set_xlabel("group #")
     ax[1].set_ylabel("DN/group")
@@ -286,7 +292,7 @@ if __name__ == "__main__":
 
     ax[k].legend(ncol=2)
 
-    fig.suptitle(f"{filenames[0]}; Pixel ({pix_x}, {pix_y})")
+    fig.suptitle(f"{all_filenames[0]}; Pixel ({pix_x}, {pix_y})")
 
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
