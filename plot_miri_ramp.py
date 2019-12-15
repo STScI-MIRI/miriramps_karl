@@ -44,6 +44,9 @@ if __name__ == "__main__":
         "Data/MIRI_5694_25_S_20191018-183008_SCE1.fits",
     ]
     # all_filenames = all_filenames[::-1]
+
+    all_filenames = ['Data/MIRI_5700_18_S_20191022-225042_SCE1.fits']
+    all_filenames = ['Data/MIRI_5701_238_S_20191023-215644_SCE1.fits']
     hdu = fits.open(all_filenames[0])
 
     fig, sax = plt.subplots(ncols=4, nrows=2, figsize=(18, 9))
@@ -68,7 +71,7 @@ if __name__ == "__main__":
     y = []
 
     # for plotting
-    pcol = ["b", "g", "r", "c"]
+    pcol = ["b", "g", "r", "c", "y"]
 
     # plot all integrations folded
     mm_delta = 0.0

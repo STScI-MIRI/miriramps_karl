@@ -65,8 +65,8 @@ def get_good_ramp(gnum, ydata, min_dn=0.0, max_dn=55000.0):
         diffDN is the difference between each two groups (2pt diff or CDS)
     """
     # create clean versions of the data
-    ydatat = ydata[1:]
-    gnumt = gnum[1:]
+    ydatat = ydata[1:-1]
+    gnumt = gnum[1:-1]
     gindxs, = np.where((ydatat > min_dn) & (ydatat < max_dn))
     gdata = ydatat[gindxs]
     ggnum = gnumt[gindxs]
