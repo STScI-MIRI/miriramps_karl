@@ -1,6 +1,7 @@
 import argparse
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 from astropy.io import fits
 from astropy.modeling.models import Linear1D
@@ -32,8 +33,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     all_filenames = [
-        "Data/MIRI_5692_17_S_20191017-184107_SCE1.fits",
         "Data/MIRI_5692_18_S_20191017-193412_SCE1.fits",
+        "Data/MIRI_5692_17_S_20191017-184107_SCE1.fits",
         "Data/MIRI_5692_19_S_20191017-202738_SCE1.fits",
         "Data/MIRI_5692_20_S_20191017-212044_SCE1.fits",
         "Data/MIRI_5692_21_S_20191017-221350_SCE1.fits",
@@ -43,13 +44,23 @@ if __name__ == "__main__":
         "Data/MIRI_5694_24_S_20191018-180833_SCE1.fits",
         "Data/MIRI_5694_25_S_20191018-183008_SCE1.fits",
     ]
-    # all_filenames = all_filenames[::-1]
-
     all_filenames = ['Data/MIRI_5700_18_S_20191022-225042_SCE1.fits']
     all_filenames = ['Data/MIRI_5701_238_S_20191023-215644_SCE1.fits']
-    hdu = fits.open(all_filenames[0])
+    all_filenames = ["Data/MIRI_5708_80_S_20191027-053806_SCE1.fits",
+                     "Data/MIRI_5708_137_S_20191027-201705_SCE1.fits",
+                     "Data/MIRI_5708_153_S_20191027-223137_SCE1.fits",
+                     "Data/MIRI_5709_34_S_20191029-011921_SCE1.fits",
+                     "Data/MIRI_5709_32_S_20191029-010437_SCE1.fits",
+                     "Data/MIRI_5709_30_S_20191029-004923_SCE1.fits",
+                     "Data/MIRI_5709_28_S_20191029-003349_SCE1.fits",
+                     "Data/MIRI_5709_24_S_20191029-000141_SCE1.fits",
+                     "Data/MIRI_5709_18_S_20191028-231009_SCE1.fits"]
+    # all_filenames = ["Data/MIRI_5709_18_S_20191028-231009_SCE1.fits"]
+    # all_filenames = all_filenames[::-1]
+    hdu = fits.open(all_filenames[0], memmap=False)
 
     fig, sax = plt.subplots(ncols=4, nrows=2, figsize=(18, 9))
+    # fig, sax = plt.subplots(ncols=4, nrows=2, figsize=(8, 6))
     ax = [
         sax[0, 0],
         sax[1, 0],
@@ -61,7 +72,19 @@ if __name__ == "__main__":
         sax[0, 3],
     ]
 
-    pix_x, pix_y = args.pixel
+    # plotting setup for easier to read plots
+    # fontsize = 18
+    fontsize = 8
+    font = {"size": fontsize}
+    mpl.rc("font", **font)
+    mpl.rc("lines", linewidth=1)
+    mpl.rc("axes", linewidth=2)
+    mpl.rc("xtick.major", width=2)
+    mpl.rc("xtick.minor", width=2)
+    mpl.rc("ytick.major", width=2)
+    mpl.rc("ytick.minor", width=2)
+
+    pix_y, pix_x = args.pixel
     ngrps = hdu[0].header["NGROUPS"]
     nints = hdu[0].header["NINT"]
     nrej = args.nrej
@@ -71,11 +94,12 @@ if __name__ == "__main__":
     y = []
 
     # for plotting
-    pcol = ["b", "g", "r", "c", "y"]
+    pcol = ["b", "g", "r", "c", "y", "b", "g", "r", "c", "y"]
 
     # plot all integrations folded
     mm_delta = 0.0
     max_ramp_k = -1
+    print("# ints = ", nints)
     for k in range(nints):
         gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k)
         ggnum, gdata, aveDN, diffDN = get_good_ramp(gnum, ydata)
@@ -211,9 +235,14 @@ if __name__ == "__main__":
         filenames = all_filenames[1:]
 
     lin_off_val = 0.01
+    prev_ints = nints
     for z, cfile in enumerate(filenames):
         hdu = fits.open(cfile)
-        off_int = (z + 1) * nints
+        nints = hdu[0].header["NINT"]
+        ints = range(nints)
+        # off_int = (z + 1) * nints
+        off_int = prev_ints
+        prev_ints += nints
 
         # plot all integrations folded
         for k in range(nints):
