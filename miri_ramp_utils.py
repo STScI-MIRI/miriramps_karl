@@ -8,7 +8,7 @@ from astropy.modeling.fitting import LevMarLSQFitter
 __all__ = ["get_ramp", "get_good_ramp", "fit_diffs", "calc_lincor"]
 
 
-def get_ramp(hdu, pix_x, pix_y, int_num, min_dn=0.0, max_dn=55000.0):
+def get_ramp(hdu, pix_x, pix_y, int_num, min_dn=0.0, rampoffval=0.0):
     """
     Get the ramp data for a single pixel for a single integration in an exposure
 
@@ -23,6 +23,9 @@ def get_ramp(hdu, pix_x, pix_y, int_num, min_dn=0.0, max_dn=55000.0):
     int_num : int
         integration number (starts at 0)
 
+    rampoffval : float
+        value to offset ramp due to changing video offset
+
     Returns
     -------
     gnum, ydata : tuple of ndarrays
@@ -33,7 +36,8 @@ def get_ramp(hdu, pix_x, pix_y, int_num, min_dn=0.0, max_dn=55000.0):
     k1 = int_num * ngrps
     k2 = k1 + ngrps
     gnum = np.array(range(ngrps))
-    ydata = (hdu.data[k1:k2, pix_x, pix_y]).astype(float)
+    ydata = (hdu.data[k1:k2, pix_y, pix_x]).astype(float)
+    ydata += rampoffval
 
     return (gnum, ydata)
 

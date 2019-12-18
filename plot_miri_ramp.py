@@ -46,7 +46,7 @@ if __name__ == "__main__":
     ]
     all_filenames = ['Data/MIRI_5700_18_S_20191022-225042_SCE1.fits']
     all_filenames = ['Data/MIRI_5701_238_S_20191023-215644_SCE1.fits']
-    all_filenames = ["Data/MIRI_5708_80_S_20191027-053806_SCE1.fits",
+    all_filenames = [  # "Data/MIRI_5708_80_S_20191027-053806_SCE1.fits",
                      "Data/MIRI_5708_137_S_20191027-201705_SCE1.fits",
                      "Data/MIRI_5708_153_S_20191027-223137_SCE1.fits",
                      "Data/MIRI_5709_34_S_20191029-011921_SCE1.fits",
@@ -55,6 +55,9 @@ if __name__ == "__main__":
                      "Data/MIRI_5709_28_S_20191029-003349_SCE1.fits",
                      "Data/MIRI_5709_24_S_20191029-000141_SCE1.fits",
                      "Data/MIRI_5709_18_S_20191028-231009_SCE1.fits"]
+    rampoffvals = [0.0, 0.0,
+                   -4900., -4900., -4900., -4900., -4900., -4900.]
+    rampoffvals = np.zeros((len(all_filenames)))
     # all_filenames = ["Data/MIRI_5709_18_S_20191028-231009_SCE1.fits"]
     # all_filenames = all_filenames[::-1]
     hdu = fits.open(all_filenames[0], memmap=False)
@@ -84,7 +87,7 @@ if __name__ == "__main__":
     mpl.rc("ytick.major", width=2)
     mpl.rc("ytick.minor", width=2)
 
-    pix_y, pix_x = args.pixel
+    pix_x, pix_y = args.pixel
     ngrps = hdu[0].header["NGROUPS"]
     nints = hdu[0].header["NINT"]
     nrej = args.nrej
@@ -99,9 +102,10 @@ if __name__ == "__main__":
     # plot all integrations folded
     mm_delta = 0.0
     max_ramp_k = -1
-    print("# ints = ", nints)
+    rampoffval = rampoffvals[0]
+    # print("# ints = ", nints)
     for k in range(nints):
-        gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k)
+        gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k, rampoffval=rampoffvals[0])
         ggnum, gdata, aveDN, diffDN = get_good_ramp(gnum, ydata)
 
         ax[0].plot(gnum, ydata, label=f"Int #{k+1}", color=pcol[k])
@@ -151,7 +155,7 @@ if __name__ == "__main__":
     for i, startDN in enumerate(startDNvals):
         (DN_exp, cor, cor_mod) = calc_lincor(polymod, max_ramp_aveDN, startDN)
         for k in ints:
-            gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k)
+            gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k, rampoffval=rampoffvals[0])
             ggnum, gdata, aveDN, diffDN = get_good_ramp(gnum, ydata)
             # correct the ramps
             ycor = cor_mod(gdata)
@@ -181,7 +185,7 @@ if __name__ == "__main__":
     intslopes = np.zeros((nints))
     linfit_metric = np.zeros((nints))
     for k in range(nints):
-        gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k)
+        gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k, rampoffval=rampoffvals[0])
         ggnum, gdata, aveDN, diffDN = get_good_ramp(gnum, ydata)
 
         # correct the ramps and plot
@@ -246,7 +250,7 @@ if __name__ == "__main__":
 
         # plot all integrations folded
         for k in range(nints):
-            gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k)
+            gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k, rampoffval=rampoffvals[z + 1])
             ggnum, gdata, aveDN, diffDN = get_good_ramp(gnum, ydata)
 
             ax[0].plot(gnum, ydata, color=pcol[k])
@@ -263,7 +267,7 @@ if __name__ == "__main__":
         intslopes = np.zeros((nints))
         linfit_metric = np.zeros((nints))
         for k in range(nints):
-            gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k)
+            gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k, rampoffval=rampoffvals[z + 1])
             ggnum, gdata, aveDN, diffDN = get_good_ramp(gnum, ydata)
 
             # correct the ramps and plot
