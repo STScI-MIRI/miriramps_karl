@@ -160,3 +160,34 @@ def calc_lincor(mod2pt, DNvals, startDN, ndegree=3):
     # print(cor_mod)
 
     return (DN_exp, cor, cor_mod)
+
+
+def lincor_data(lincormod, gdata, aveDN, diffDN):
+    """
+    Applies the ramp based linearity correction to the data
+
+    Parameters
+    ----------
+    lincormod : astropy model
+        model given the behavior of the 2pt diffs versus average DN
+
+    gdata : array
+        the DN values at each good group
+
+    aveDN : array
+        the average values between each two groups
+
+    diffDN :  array
+        the difference between each two groups (2pt diff or CDS)
+
+    Returns
+    -------
+    gdata_cor : array
+        linearity correct ramp
+    """
+
+    ycor = lincormod(aveDN) / lincormod.c0.value
+    diffDN_cor = diffDN / ycor
+    gdata_cor = np.concatenate(([gdata[0]], gdata[0] + np.cumsum(diffDN_cor)))
+
+    return gdata_cor
