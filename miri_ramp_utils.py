@@ -102,6 +102,8 @@ def fit_diffs(x, y, ndegree=2):
     mod : astropy model
         fitted model
     """
+    print(min(y))
+
     mod_init = (
         Shift(offset=5000.0, bounds={"offset": [-100000.0, 20000.0]})
         | Exponential1D(
@@ -116,6 +118,8 @@ def fit_diffs(x, y, ndegree=2):
     mod = fit(mod_init, x, y, maxiter=10000)
 
     print(mod)
+
+    # exit()
 
     return mod
 

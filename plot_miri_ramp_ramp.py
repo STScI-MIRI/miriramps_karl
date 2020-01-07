@@ -144,6 +144,7 @@ if __name__ == "__main__":
 
     # plot the model
     mod_x = np.linspace(0.0, 65000.0, num=100)
+    ax[3].plot(mod_x, mod(mod_x)/lincormod(mod_x), label="full/linear")
 
     ints = range(nints)
 
@@ -338,6 +339,10 @@ if __name__ == "__main__":
     ax[0].set_xlabel("group #")
     ax[0].set_ylabel("DN")
 
+    ax[3].set_xlabel("DN")
+    ax[3].set_ylabel("linear+exp model/linear model")
+    ax[3].set_ylim(0.99, 1.2)
+
     ax[4].set_xlabel("group #")
     ax[4].set_ylabel("DN_cor/line_fit")
     ax[4].set_ylim(0.99, 1.01 + lin_off_val * len(filenames))
@@ -361,6 +366,8 @@ if __name__ == "__main__":
     for k in range(len(ax)):
         ax[k].legend()
 
+    ax[4].legend(ncol=2)
+    ax[5].legend(ncol=2)
     ax[7].legend(ncol=2)
     ax[6].legend().set_visible(False)
 
