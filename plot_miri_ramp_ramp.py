@@ -25,7 +25,7 @@ if __name__ == "__main__":
         default=[512, 512],
     )
     parser.add_argument(
-        "--nrej", help="number of groups to ignore in linear fit", type=int, default=24
+        "--nrej", help="number of groups to ignore in linear fit", type=int, default=0
     )
     parser.add_argument(
         "--primeonly", help="plot the primary exposure", action="store_true"
@@ -126,6 +126,9 @@ if __name__ == "__main__":
         x.append(aveDN)
         y.append(diffDN)
 
+        # fit each ramp to determine RSCD exp behavior
+        # tmod = fit_diffs(aveDN, diffDN)
+
         # find the ramp that spans the largest range of DN
         # and save some info -> needed for creating the correction
         # if (gdata.max() - gdata.min()) > mm_delta:
@@ -179,7 +182,6 @@ if __name__ == "__main__":
 
         # plot the corrected ramp divided by a linear fit
         line_mod = fit_line(line_init, ggnum[nrej:], gdata_cor[nrej:])
-        print(line_mod)
         if mult_comp:
             intslopes[k] = line_mod[1].slope.value
             intexpamp[k] = line_mod[0].amplitude.value
@@ -340,7 +342,7 @@ if __name__ == "__main__":
     ax[0].set_ylabel("DN")
 
     ax[3].set_xlabel("DN")
-    ax[3].set_ylabel("linear+exp model/linear model")
+    ax[3].set_ylabel("poly+exp model/poly model")
     ax[3].set_ylim(0.99, 1.2)
 
     ax[4].set_xlabel("group #")

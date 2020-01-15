@@ -102,7 +102,7 @@ def fit_diffs(x, y, ndegree=2):
     mod : astropy model
         fitted model
     """
-    print(min(y))
+    # print(min(x))
 
     mod_init = (
         Shift(offset=5000.0, bounds={"offset": [-100000.0, 20000.0]})
