@@ -42,7 +42,7 @@ def get_ramp(hdu, pix_x, pix_y, int_num, min_dn=0.0, rampoffval=0.0):
     return (gnum, ydata)
 
 
-def get_good_ramp(gnum, ydata, min_dn=0.0, max_dn=55000.0):
+def get_good_ramp(gnum, ydata, min_dn=0.0, max_dn=62500.0):
     """
     Get the data on the good portions of a ramp
 
@@ -81,7 +81,7 @@ def get_good_ramp(gnum, ydata, min_dn=0.0, max_dn=55000.0):
     return (ggnum, gdata, aveDN, diffDN)
 
 
-def fit_diffs(x, y, ndegree=2):
+def fit_diffs(x, y, ndegree=2, noexp=False):
     """
     Fit the average DN versus 2pt differences with a model that accounts
     for the non-linearities and RSCD exponential decay at beginning of ramp
@@ -97,6 +97,9 @@ def fit_diffs(x, y, ndegree=2):
     ndegree : int
         degree of polynomial for fit
 
+    noexp : boolean
+        set to true to only do a polynomial (no exponential)
+
     Returns
     -------
     mod : astropy model
@@ -104,20 +107,23 @@ def fit_diffs(x, y, ndegree=2):
     """
     # print(min(x))
 
-    mod_init = (
-        Shift(offset=5000.0, bounds={"offset": [-100000.0, 20000.0]})
-        | Exponential1D(
-            x_0=-1000.0,
-            amplitude=2500.0,
-            bounds={"amplitude": [100.0, 100000.0], "x_0": [-10000.0, -0.1]},
-        )
-    ) + Polynomial1D(degree=ndegree)
+    if noexp:
+        mod_init = Polynomial1D(degree=ndegree)
+    else:
+        mod_init = (
+            Shift(offset=5000.0, bounds={"offset": [-100000.0, 20000.0]})
+            | Exponential1D(
+                x_0=-1000.0,
+                amplitude=2500.0,
+                bounds={"amplitude": [100.0, 100000.0], "x_0": [-10000.0, -0.1]},
+            )
+        ) + Polynomial1D(degree=ndegree)
 
     fit = LevMarLSQFitter()
 
     mod = fit(mod_init, x, y, maxiter=10000)
 
-    print(mod)
+    # print(mod)
 
     # exit()
 

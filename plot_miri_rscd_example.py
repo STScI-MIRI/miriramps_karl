@@ -31,8 +31,15 @@ if __name__ == "__main__":
     parser.add_argument("--pdf", help="save figure as a pdf file", action="store_true")
     args = parser.parse_args()
 
-    all_filenames = ["Data/MIRI_5708_137_S_20191027-201705_SCE1.fits"]
-    all_filenames = ["Data/MIRI_5708_154_S_20191027-225136_SCE1.fits"]
+    noexp = False
+    # all_filenames = ["Data/MIRI_5708_137_S_20191027-201705_SCE1.fits"]
+    # all_filenames = ["Data/MIRI_5708_154_S_20191027-225136_SCE1.fits"]
+    # noexp = True
+    # all_filenames = ["Data/MIRI_5709_290_S_20191030-055245_SCE1.fits"]
+
+    # all_filenames = ["Data/MIRI_5709_292_S_20191030-060729_SCE1.fits"]
+    all_filenames = ["Data/MIRI_5709_294_S_20191030-062243_SCE1.fits"]
+    noexp = True
 
     # open the fits file
     hdu = fits.open(all_filenames[0], memmap=False)
@@ -53,7 +60,7 @@ if __name__ == "__main__":
 
     pix_x, pix_y = args.pixel
     ngrps = hdu[0].header["NGROUPS"]
-    nints = min([5, hdu[0].header["NINT"]])
+    nints = min([10, hdu[0].header["NINT"]])
     nrej = args.nrej
 
     # for fitting
@@ -84,8 +91,11 @@ if __name__ == "__main__":
     # e.g., derive the non-linearity correction
     x = np.concatenate(x)
     y = np.concatenate(y)
-    mod = fit_diffs(x, y)
-    polymod = mod[2]
+    mod = fit_diffs(x, y, noexp=noexp)
+    if noexp:
+        polymod = mod
+    else:
+        polymod = mod[2]
     lincormod = polymod
 
     ints = range(nints)
