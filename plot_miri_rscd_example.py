@@ -38,8 +38,12 @@ if __name__ == "__main__":
     # all_filenames = ["Data/MIRI_5709_290_S_20191030-055245_SCE1.fits"]
 
     # all_filenames = ["Data/MIRI_5709_292_S_20191030-060729_SCE1.fits"]
-    all_filenames = ["Data/MIRI_5709_294_S_20191030-062243_SCE1.fits"]
-    noexp = True
+    # all_filenames = ["Data/MIRI_5709_294_S_20191030-062243_SCE1.fits"]
+    all_filenames = ["Data/MIRI_5709_76_S_20191029-043558_SCE1.fits"]
+    all_filenames = ["Data/MIRI_5709_92_S_20191029-063439_SCE1.fits"]
+    all_filenames = ["Data/MIRI_5709_78_S_20191029-045032_SCE1.fits"]
+    all_filenames = ["Data/MIRI_5709_82_S_20191029-052000_SCE1.fits"]
+    # noexp = True
 
     # open the fits file
     hdu = fits.open(all_filenames[0], memmap=False)

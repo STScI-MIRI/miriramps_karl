@@ -42,7 +42,7 @@ def get_ramp(hdu, pix_x, pix_y, int_num, min_dn=0.0, rampoffval=0.0):
     return (gnum, ydata)
 
 
-def get_good_ramp(gnum, ydata, min_dn=0.0, max_dn=62500.0):
+def get_good_ramp(gnum, ydata, min_dn=0.0, max_dn=62500.0, keepfirst=False, nmax=None):
     """
     Get the data on the good portions of a ramp
 
@@ -60,6 +60,12 @@ def get_good_ramp(gnum, ydata, min_dn=0.0, max_dn=62500.0):
     max_dn : float
         maximum DN value to use [default=55000]
 
+    keepfirst : boolean
+        include the first frame, by default it is removed
+
+    nmax : int
+        maximum number of groups to use, by default all are used
+
     Returns
     -------
     ggnum, gdata, aveDN, diffDN : tuple of ndarrays
@@ -69,9 +75,16 @@ def get_good_ramp(gnum, ydata, min_dn=0.0, max_dn=62500.0):
         diffDN is the difference between each two groups (2pt diff or CDS)
     """
     # create clean versions of the data
-    ydatat = ydata[1:-1]
-    gnumt = gnum[1:-1]
-    gindxs, = np.where((ydatat > min_dn) & (ydatat < max_dn))
+    if keepfirst:
+        startk = 0
+    else:
+        startk = 1
+    if nmax is None:
+        nmax = -1
+
+    ydatat = ydata[startk:nmax]
+    gnumt = gnum[startk:nmax]
+    (gindxs,) = np.where((ydatat > min_dn) & (ydatat < max_dn))
     gdata = ydatat[gindxs]
     ggnum = gnumt[gindxs]
 
