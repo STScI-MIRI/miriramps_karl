@@ -191,21 +191,20 @@ if __name__ == "__main__":
                     line_mod = fit_line(
                         line_init, fr0_ggnum[k][fr0_nrej:], fr0_gdata_cor[k][fr0_nrej:]
                     )
+                    if k == 0:
+                        intslope_nrej_fr = line_mod.slope.value
                     sax[2, z].plot(
                         [ints[k] + 1],
-                        [line_mod.slope.value] / aveslope,
+                        [line_mod.slope.value] / intslope_nrej_fr,
                         "ko",
                         fillstyle="none",
                         markersize=10,
                     )
 
-        # plot the measured slopes
-        if z == 0:
-            aveslope = np.average(intslopes)
         for k in range(nints):
             sax[2, z].plot(
                 [ints[k] + 1],
-                [intslopes[k] / aveslope],
+                [intslopes[k] / intslopes[0]],
                 "ko",
                 label=f"Int #{ints[k]+1} slope = {intslopes[k]:.2f} DN/group",
                 color="k",  # pcol[k],
@@ -230,7 +229,7 @@ if __name__ == "__main__":
         if z == 0:
             sax[0, z].set_ylabel("DN", fontdict=font)
             sax[1, z].set_ylabel("DN/group", fontdict=font)
-            sax[2, z].set_ylabel("slope / (ave FR=0)")
+            sax[2, z].set_ylabel("slope / slope(int=1)")
             sax[0, z].legend(fontsize=8)
 
         # ax[3].set_xlabel("DN")
