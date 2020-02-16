@@ -32,27 +32,30 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     noexp = False
-    # all_filenames = ["Data/MIRI_5708_137_S_20191027-201705_SCE1.fits"]
+    all_filenames = ["Data/MIRI_5708_137_S_20191027-201705_SCE1.fits"]
     # all_filenames = ["Data/MIRI_5708_154_S_20191027-225136_SCE1.fits"]
     # noexp = True
     # all_filenames = ["Data/MIRI_5709_290_S_20191030-055245_SCE1.fits"]
 
     # all_filenames = ["Data/MIRI_5709_292_S_20191030-060729_SCE1.fits"]
     # all_filenames = ["Data/MIRI_5709_294_S_20191030-062243_SCE1.fits"]
-    all_filenames = ["Data/MIRI_5709_76_S_20191029-043558_SCE1.fits"]
-    all_filenames = ["Data/MIRI_5709_92_S_20191029-063439_SCE1.fits"]
-    all_filenames = ["Data/MIRI_5709_78_S_20191029-045032_SCE1.fits"]
-    all_filenames = ["Data/MIRI_5709_82_S_20191029-052000_SCE1.fits"]
+    # all_filenames = ["Data/MIRI_5709_76_S_20191029-043558_SCE1.fits"]
+    # all_filenames = ["Data/MIRI_5709_92_S_20191029-063439_SCE1.fits"]
+    # all_filenames = ["Data/MIRI_5709_78_S_20191029-045032_SCE1.fits"]
+    # all_filenames = ["Data/MIRI_5709_82_S_20191029-052000_SCE1.fits"]
     # noexp = True
 
     # open the fits file
     hdu = fits.open(all_filenames[0], memmap=False)
 
-    fig, sax = plt.subplots(ncols=2, nrows=2, figsize=(10, 10))
-    ax = [sax[0, 0], sax[1, 0], sax[0, 1], sax[1, 1]]
+    fig = plt.figure(constrained_layout=True, figsize=(14, 10))
+    gs = fig.add_gridspec(2, 2)
+    ax = [fig.add_subplot(gs[0, :]),
+          fig.add_subplot(gs[1, 0]),
+          fig.add_subplot(gs[1, 1])]
 
     # plotting setup for easier to read plots
-    fontsize = 12
+    fontsize = 16
     font = {"size": fontsize}
     mpl.rc("font", **font)
     mpl.rc("lines", linewidth=2)
@@ -62,9 +65,12 @@ if __name__ == "__main__":
     mpl.rc("ytick.major", width=2)
     mpl.rc("ytick.minor", width=2)
 
+    for k in range(3):
+        ax[k].tick_params(axis='both', which='major', labelsize=fontsize)
+
     pix_x, pix_y = args.pixel
     ngrps = hdu[0].header["NGROUPS"]
-    nints = min([10, hdu[0].header["NINT"]])
+    nints = min([5, hdu[0].header["NINT"]])
     nrej = args.nrej
 
     # for fitting
@@ -79,13 +85,7 @@ if __name__ == "__main__":
         gnum, ydata = get_ramp(hdu[0], pix_x, pix_y, k)
         ggnum, gdata, aveDN, diffDN = get_good_ramp(gnum, ydata)
 
-        ax[0].plot(gnum, ydata, label=f"Int #{k+1}", color=pcol[k])
-
-        # plot the 2pt diffs versus average DN
-        ax[1].plot(aveDN, diffDN, label=f"Int #{k+1}", color=pcol[k])
-
-        if k == 0:
-            ax[1].set_ylim(0.9 * min(diffDN), 1.4 * max(diffDN))
+        ax[0].plot(gnum + k * ngrps, ydata, label=f"Int #{k+1}", color=pcol[k])
 
         # accumulate data for later plotting
         x.append(aveDN)
@@ -122,7 +122,8 @@ if __name__ == "__main__":
         # plot the linearied 2pt diffs versus average DN
         diffDN = np.diff(gdata_cor)
         aveDN = 0.5 * (gdata[:-1] + gdata[1:])
-        ax[3].plot(aveDN, diffDN, color=pcol[k])
+        ax[1].plot(ggnum[:-1] + 0.5, diffDN, color=pcol[k])
+        # ax[1].plot(aveDN, diffDN, color=pcol[k])
 
         # compute the corrected ramp divided by a linear fit
         line_mod = fit_line(line_init, ggnum[nrej:], gdata_cor[nrej:])
@@ -132,9 +133,6 @@ if __name__ == "__main__":
         else:
             intslopes[k] = line_mod.slope.value
         linfit_ratio = gdata_cor / line_mod(ggnum)
-
-        ax[3].plot([0., 65000.], [intslopes[k], intslopes[k]], "k--",
-                   color=pcol[k], alpha=0.5)
 
         # compute metric on deviations from the linear fit
         linfit_metric[k] = np.sum(np.power(linfit_ratio[nrej:] - 1.0, 2.0)) / len(
@@ -146,34 +144,38 @@ if __name__ == "__main__":
     for k in range(nints):
         ax[2].plot(
             [ints[k] + 1],
-            [intslopes[k] / aveslope],
+            [intslopes[k] / intslopes[0]],
             "ko",
             label=f"Int #{ints[k]+1} slope = {intslopes[k]:.2f} DN/group",
             color=pcol[k],
+            markersize=10,
         )
-    ax[2].set_ylim(0.995, 1.02)
-
-    # plot the model
-    mod_x = np.linspace(0.0, 65000.0, num=100)
-    ax[1].plot(mod_x, mod(mod_x), "k--", label="Exp1D+Poly1D")
-    ax[1].plot(mod_x, polymod(mod_x), "k-.", label="Poly1D only")
+    # ax[2].set_ylim(0.995, 1.02)
 
     # finish the plots
     ax[0].set_xlabel("group #", fontdict=font)
     ax[0].set_ylabel("DN", fontdict=font)
 
-    ax[1].set_xlabel("DN", fontdict=font)
+    ax[2].set_xlabel("integration #", fontdict=font)
+    ax[2].set_ylabel("slope / slope(int1)", fontdict=font)
+
+    ax[1].set_xlabel("group #", fontdict=font)
     ax[1].set_ylabel("DN/group", fontdict=font)
 
-    ax[2].set_xlabel("integration #")
-    ax[2].set_ylabel("slope / ave")
+    ax[0].errorbar([20.], [11000.], yerr=[6000.], ecolor='k', capthick=2, capsize=10)
+    ax[0].annotate('RSCD \nramp \noffset', xy=(25, 10000.), xytext=(40., 20000.),
+                   arrowprops=dict(facecolor='black', shrink=0.025), fontsize=20)
+    # ax[1].text(20000., 1450., 'RSCD fast decay', fontsize=20)
+    # ax[1].errorbar([10000.], [1500.], xerr=[2000.], ecolor='k', capthick=2, capsize=10)
+    ax[1].annotate('RSCD fast decay', xy=(3., 1300.), xytext=(10., 1350),
+                   arrowprops=dict(facecolor='black', shrink=0.025), fontsize=20)
+    ax[2].errorbar([1.5], [0.9946], yerr=[0.0052], ecolor='k', capthick=2, capsize=10)
+    ax[2].annotate('RSCD slope difference', xy=(1.6, 0.9946), xytext=(2.5, 0.999),
+                   arrowprops=dict(facecolor='black', shrink=0.025), fontsize=20)
 
-    ax[3].set_xlabel("DN")
-    ax[3].set_ylabel("DN(linearized)/group")
-
-    ax[0].legend(fontsize=10)
-    ax[1].legend(fontsize=9)
-    ax[2].legend(fontsize=9)
+    # ax[0].legend(fontsize=10)
+    # ax[1].legend(fontsize=9)
+    # ax[2].legend(fontsize=9)
 
     fig.suptitle(f"{all_filenames[0]}; Pixel ({pix_x}, {pix_y})")
 

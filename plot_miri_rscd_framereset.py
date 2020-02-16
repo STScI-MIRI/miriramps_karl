@@ -24,7 +24,7 @@ if __name__ == "__main__":
         default=[512, 512],
     )
     parser.add_argument(
-        "--nrej", help="number of groups to ignore in linear fit", type=int, default=0
+        "--nrej", help="number of groups to ignore in linear fit", type=int, default=4
     )
     parser.add_argument(
         "--nmax", help="max number groups in linear fit", type=int, default=None
@@ -34,7 +34,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--subarray",
-        choices=["FULL", "4QPM", "SUB64"],
+        choices=["FULL", "4QPM", "SUB64", "SLOW"],
         default="FULL",
         help="subarray indicates data used",
     )
@@ -43,26 +43,40 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     noexp = False
+    plot_skip = False
+    max_fr_group = 20
     if args.subarray == "SUB64":
         all_filenames = [
             "Data/MIRI_5709_112_S_20191029-090719_SCE1.fits",
             "Data/MIRI_5709_114_S_20191029-092123_SCE1.fits",
             "Data/MIRI_5709_120_S_20191029-100335_SCE1.fits",
             "Data/MIRI_5709_122_S_20191029-101739_SCE1.fits",
-            "Data/MIRI_5709_128_S_20191029-110020_SCE1.fits",
+            #  "Data/MIRI_5709_128_S_20191029-110020_SCE1.fits",
         ]
-        frameresets = [0, 1, 4, 8, 30]
-        ptitle = "SCA106 5709(112, 114, 120, 122, 128) SUB64 subarray"
+        frameresets = [0, 1, 4, 8]  # , 30]
+        # ptitle = "SCA106 5709(112, 114, 120, 122, 128) SUB64 subarray"
+        ptitle = "SCA106 5709(112, 114, 120, 122) SUB64 subarray"
     elif args.subarray == "4QPM":
         all_filenames = [
             "Data/MIRI_5709_76_S_20191029-043558_SCE1.fits",
             "Data/MIRI_5709_78_S_20191029-045032_SCE1.fits",
             "Data/MIRI_5709_84_S_20191029-053444_SCE1.fits",
             "Data/MIRI_5709_86_S_20191029-054928_SCE1.fits",
-            "Data/MIRI_5709_92_S_20191029-063439_SCE1.fits",
+            # "Data/MIRI_5709_92_S_20191029-063439_SCE1.fits",
         ]
-        frameresets = [0, 1, 4, 8, 30]
-        ptitle = "SCA106 5709(76, 78, 84, 86, 92) 4QPM subarray"
+        frameresets = [0, 1, 4, 8]  # , 30]
+        # ptitle = "SCA106 5709(76, 78, 84, 86, 92) 4QPM subarray"
+        ptitle = "SCA106 5709(76, 78, 84, 86) 4QPM subarray"
+    elif args.subarray == "SLOW":
+        all_filenames = [
+            "Data/MIRI_5708_42_S_20191026-173002_SCE1.fits",
+            "Data/MIRI_5708_41_S_20191026-170526_SCE1.fits",
+            "Data/MIRI_5708_40_S_20191026-165240_SCE1.fits",
+        ]
+        frameresets = [0, 0, 0]
+        ptitle = "SCA106 5708(42) FULL SLOW"
+        plot_skip = False
+        max_fr_group = 10
     else:
         all_filenames = [
             "Data/MIRI_5709_34_S_20191029-011921_SCE1.fits",
@@ -83,7 +97,7 @@ if __name__ == "__main__":
     )
 
     # plotting setup for easier to read plots
-    fontsize = 10
+    fontsize = 14
     font = {"size": fontsize}
     mpl.rc("font", **font)
     mpl.rc("lines", linewidth=2)
@@ -92,6 +106,10 @@ if __name__ == "__main__":
     mpl.rc("xtick.minor", width=2)
     mpl.rc("ytick.major", width=2)
     mpl.rc("ytick.minor", width=2)
+
+    for j in range(n_files):
+        for k in range(3):
+            sax[k, j].tick_params(axis='both', which='major', labelsize=fontsize)
 
     aveslope = 0.0
 
@@ -191,15 +209,16 @@ if __name__ == "__main__":
                     line_mod = fit_line(
                         line_init, fr0_ggnum[k][fr0_nrej:], fr0_gdata_cor[k][fr0_nrej:]
                     )
-                    if k == 0:
-                        intslope_nrej_fr = line_mod.slope.value
-                    sax[2, z].plot(
-                        [ints[k] + 1],
-                        [line_mod.slope.value] / intslope_nrej_fr,
-                        "ko",
-                        fillstyle="none",
-                        markersize=10,
-                    )
+                    if plot_skip:
+                        if k == 0:
+                            intslope_nrej_fr = line_mod.slope.value
+                        sax[2, z].plot(
+                            [ints[k] + 1],
+                            [line_mod.slope.value] / intslope_nrej_fr,
+                            "ko",
+                            fillstyle="none",
+                            markersize=10,
+                        )
 
         for k in range(nints):
             sax[2, z].plot(
@@ -216,20 +235,20 @@ if __name__ == "__main__":
         # ax[1].plot(mod_x, polymod(mod_x), "k-.", label="Poly1D only")
 
         # finish the plots
-        sax[0, z].set_title(f"FRAMERESETS={frameresets[z]}", fontsize=9)
+        sax[0, z].set_title(f"FRAMERESETS={frameresets[z]}", fontdict=font)
 
         sax[0, z].set_xlabel("group #", fontdict=font)
         sax[1, z].set_xlabel("group #", fontdict=font)
-        sax[2, z].set_xlabel("integration #")
+        sax[2, z].set_xlabel("integration #", fontdict=font)
 
-        sax[1, z].set_xlim(0, 20)
+        sax[1, z].set_xlim(0, max_fr_group)
 
         # sax[2, z].set_ylim(0.98, 1.02)
 
         if z == 0:
             sax[0, z].set_ylabel("DN", fontdict=font)
             sax[1, z].set_ylabel("DN/group", fontdict=font)
-            sax[2, z].set_ylabel("slope / slope(int=1)")
+            sax[2, z].set_ylabel("slope / slope(int=1)", fontdict=font)
             sax[0, z].legend(fontsize=8)
 
         # ax[3].set_xlabel("DN")
@@ -239,29 +258,30 @@ if __name__ == "__main__":
         # ax[2].legend(fontsize=9)
 
     # custom legend for the bottom row of plots
-    legend_elements = [
-        Line2D(
-            [0],
-            [0],
-            marker="o",
-            color="w",
-            label="FR=N data",
-            fillstyle="none",
-            markerfacecolor="k",
-            markersize=8,
-        ),
-        Line2D(
-            [0],
-            [0],
-            marker="o",
-            color="w",
-            label="FR=0 skip=N",
-            fillstyle="none",
-            markeredgecolor="k",
-            markersize=10,
-        ),
-    ]
-    sax[2, 0].legend(handles=legend_elements)
+    if plot_skip:
+        legend_elements = [
+            Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="w",
+                label="FR=N data",
+                fillstyle="none",
+                markerfacecolor="k",
+                markersize=8,
+            ),
+            Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="w",
+                label="FR=0 skip=N",
+                fillstyle="none",
+                markeredgecolor="k",
+                markersize=10,
+            ),
+        ]
+        sax[2, 0].legend(handles=legend_elements)
 
     fig.suptitle(f"{ptitle}; Pixel ({pix_x}, {pix_y})")
 
